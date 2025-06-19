@@ -1,26 +1,39 @@
-@import "tailwindcss";
+/* globals.css — TailwindCSS base imports */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Optional: Better font smoothing and system font stack */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply antialiased font-sans;
 }
+
+
+/* Optional: Headings default font weight */
+h1, h2, h3, h4, h5, h6 {
+  @apply font-semibold;
+}
+
+
+/* Optional: Inputs and buttons default styling */
+input, textarea, select, button {
+  @apply text-sm;
+}
+
+
+/* Optional: Remove default list styles */
+ul {
+  @apply list-disc list-inside;
+}
+
+
+/* Optional: Prevent textarea resize unless needed */
+textarea {
+  @apply resize-y;
+}
+
+
+
+
+

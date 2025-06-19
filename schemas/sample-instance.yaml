@@ -1,0 +1,235 @@
+# Example usage of the Generic ResourceGroup Instance
+apiVersion: kro.run/v1alpha1
+kind: GenericResourceGroup
+metadata:
+  name: example-app
+  namespace: default
+spec:
+  metadata:
+    name: my-app
+    namespace: default
+    labels:
+      app: my-application
+      version: "1.0"
+      environment: production
+    annotations:
+      description: "Example application deployment"
+      maintainer: "platform-team@company.com"
+  
+  resources:
+    # Deployment resource
+    - apiVersion: apps/v1
+      kind: Deployment
+      enabled: true
+      config:
+        replicas: 3
+        containers:
+          - name: web
+            image: nginx:1.21
+            ports:
+              - containerPort: 80
+                protocol: TCP
+            env:
+              - name: ENV
+                value: production
+              - name: DATABASE_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: db-credentials
+                    key: url
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+          - name: sidecar
+            image: busybox:1.35
+            ports:
+              - containerPort: 8080
+                protocol: TCP
+            env:
+              - name: SIDECAR_MODE
+                value: "true"
+    
+    # Service resource for the web application
+    - apiVersion: v1
+      kind: Service
+      enabled: true
+      nameOverride: my-app-web-service
+      config:
+        serviceType: ClusterIP
+        selector:
+          app.kubernetes.io/name: my-app
+          app.kubernetes.io/instance: my-app
+        containers:
+          - ports:
+              - containerPort: 80
+              - containerPort: 8080
+    
+    # LoadBalancer Service for external access
+    - apiVersion: v1
+      kind: Service
+      enabled: true
+      nameOverride: my-app-external-service
+      config:
+        serviceType: LoadBalancer
+        selector:
+          app.kubernetes.io/name: my-app
+          app.kubernetes.io/instance: my-app
+        containers:
+          - ports:
+              - containerPort: 80
+    
+    # ConfigMap resource
+    - apiVersion: v1
+      kind: ConfigMap
+      enabled: true
+      nameOverride: my-app-config
+      config:
+        data:
+          app.properties: |
+            debug=false
+            database.url=postgresql://db:5432/myapp
+            redis.url=redis://redis:6379
+            cache.ttl=3600
+          nginx.conf: |
+            server {
+              listen 80;
+              location / {
+                root /usr/share/nginx/html;
+                index index.html index.htm;
+              }
+              location /api {
+                proxy_pass http://backend:8080;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+              }
+            }
+          logging.conf: |
+            [loggers]
+            keys=root,app
+            
+            [handlers]
+            keys=consoleHandler,fileHandler
+            
+            [formatters]
+            keys=standardFormatter
+    
+    # Secret resource
+    - apiVersion: v1
+      kind: Secret
+      enabled: true
+      nameOverride: my-app-secrets
+      config:
+        type: Opaque
+        data:
+          username: YWRtaW4=              # base64 encoded 'admin'
+          password: cGFzc3dvcmQ=          # base64 encoded 'password'
+          api-key: bXktc2VjcmV0LWFwaS1rZXk=  # base64 encoded 'my-secret-api-key'
+          jwt-secret: and0LXNlY3JldC1rZXktZm9yLWp3dA==  # base64 encoded 'jwt-secret-key-for-jwt'
+    
+    # PersistentVolumeClaim resource
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      enabled: true
+      nameOverride: my-app-storage
+      config:
+        accessModes:
+          - ReadWriteOnce
+        storage: 10Gi
+        storageClassName: fast-ssd
+    
+    # Ingress resource
+    - apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      enabled: true
+      nameOverride: my-app-ingress
+      config:
+        ingressClassName: nginx
+        tls:
+          - hosts:
+              - my-app.example.com
+            secretName: my-app-tls
+        rules:
+          - host: my-app.example.com
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: my-app-web-service
+                      port:
+                        number: 80
+                - path: /api
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: my-app-web-service
+                      port:
+                        number: 8080
+    
+    # HorizontalPodAutoscaler resource
+    - apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      enabled: true
+      nameOverride: my-app-hpa
+      config:
+        scaleTargetRef:
+          apiVersion: apps/v1
+          kind: Deployment
+          name: my-app-deployment-0
+        minReplicas: 2
+        maxReplicas: 10
+        metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 70
+          - type: Resource
+            resource:
+              name: memory
+              target:
+                type: Utilization
+                averageUtilization: 80
+    
+    # ServiceAccount resource
+    - apiVersion: v1
+      kind: ServiceAccount
+      enabled: true
+      nameOverride: my-app-serviceaccount
+      config:
+        automountServiceAccountToken: true
+    
+    # NetworkPolicy resource
+    - apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      enabled: false  # Disabled by default
+      nameOverride: my-app-network-policy
+      config:
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: my-app
+        policyTypes:
+          - Ingress
+          - Egress
+        ingress:
+          - from:
+              - namespaceSelector:
+                  matchLabels:
+                    name: frontend
+            ports:
+              - protocol: TCP
+                port: 80
+        egress:
+          - to:
+              - namespaceSelector:
+                  matchLabels:
+                    name: database
+            ports:
+              - protocol: TCP
+                port: 5432

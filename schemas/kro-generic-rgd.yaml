@@ -1,0 +1,628 @@
+apiVersion: kro.run/v1alpha1  
+kind: ResourceGroup  
+metadata:  
+  name: generic-resource-group               # Name of this ResourceGraphDefinition  
+  namespace: default  
+spec:  
+  schema:                                    # Define the schema (input parameters and validation)  
+    openAPIV3Schema:  
+      type: object  
+      properties:  
+        # Common metadata applied to all resources  
+        metadata:  
+          type: object  
+          properties:  
+            name:  
+              type: string  
+              description: "Base name for all generated resources"  
+            namespace:  
+              type: string  
+              description: "Default namespace for resources (if cluster-scoped, this is ignored)"  
+              default: "default"  
+            labels:  
+              type: object  
+              additionalProperties: true  
+              description: "Labels to apply to all resources"  
+            annotations:  
+              type: object  
+              additionalProperties: true  
+              description: "Annotations to apply to all resources"  
+          required: ["name"]  
+        # Resource list defining the topology  
+        resources:  
+          type: array  
+          description: "List of resources to create as part of the group"  
+          items:  
+            type: object  
+            properties:  
+              # Identification of the resource  
+              apiVersion:  
+                type: string  
+                description: "API version of the resource (e.g. 'apps/v1')"  
+              kind:  
+                type: string  
+                description: "Kind of the resource (e.g. 'Deployment')"  
+              # Resource-specific configuration, essentially the spec for the resource  
+              config:  
+                type: object  
+                description: "Configuration for the resource (corresponds to the resource's spec or data)"  
+                additionalProperties: true                # Allow any fields in config  
+                properties:  
+                  # Common fields for workloads (Deployments, StatefulSets, etc.)  
+                  replicas:  
+                    type: integer  
+                    minimum: 0  
+                    description: "Number of replicas (for Deployment/StatefulSet/ReplicaSet)"  
+                  containers:                             # Pod container definitions  
+                    type: array  
+                    items:  
+                      type: object  
+                      additionalProperties: true          # Allow all container fields (env, volumeMounts, etc.)  
+                      properties:  
+                        name:  
+                          type: string  
+                        image:  
+                          type: string  
+                        ports:  
+                          type: array  
+                          items:  
+                            type: object  
+                            additionalProperties: true    # Allow specifying 'port', etc., for Service ports  
+                            properties:  
+                              containerPort:  
+                                type: integer  
+                                minimum: 1  
+                                maximum: 65535  
+                              protocol:  
+                                type: string  
+                                enum: ["TCP", "UDP", "SCTP"]  
+                                default: "TCP"  
+                        env:  
+                          type: array  
+                          items:  
+                            type: object  
+                            properties:  
+                              name:  
+                                type: string  
+                              value:  
+                                type: string  
+                              valueFrom:                   # e.g., secretKeyRef or configMapKeyRef  
+                                type: object  
+                                additionalProperties: true  
+                        resources:  
+                          type: object  
+                          properties:  
+                            requests:  
+                              type: object  
+                              additionalProperties: true  
+                            limits:  
+                              type: object  
+                              additionalProperties: true  
+                  # Service-specific fields  
+                  serviceType:  
+                    type: string  
+                    enum: ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"]  
+                    default: "ClusterIP"  
+                    description: "Service type (ClusterIP/NodePort/etc.)"  
+                  selector:  
+                    type: object  
+                    additionalProperties: true  
+                    description: "Selector labels for Service/other selectors"  
+                  # Generic data field (for ConfigMaps, Secrets, etc.)  
+                  data:  
+                    type: object  
+                    additionalProperties: true  
+                    description: "Data payload for ConfigMap/Secret or similar"  
+                  type:  
+                    type: string  
+                    description: "Type of Secret (e.g. 'Opaque') or other type discriminator"  
+                  # PVC-specific fields  
+                  accessModes:  
+                    type: array  
+                    items:  
+                      type: string  
+                    description: "Access modes for PersistentVolumeClaim"  
+                  storage:  
+                    type: string  
+                    description: "Storage request (e.g. '1Gi') for PVC"  
+                  storageClassName:  
+                    type: string  
+                    description: "StorageClass for PVC"  
+                  # Ingress-specific fields  
+                  ingressClassName:  
+                    type: string  
+                    description: "Ingress class name"  
+                  tls:  
+                    type: array  
+                    items:  
+                      type: object  
+                      additionalProperties: true  
+                    description: "TLS configuration for Ingress (hosts, secretName, etc.)"  
+                  rules:  
+                    type: array  
+                    items:  
+                      type: object  
+                      additionalProperties: true  
+                    description: "Ingress routing rules"  
+                  # CronJob-specific fields  
+                  schedule:  
+                    type: string  
+                    description: "Cron schedule (for CronJob)"  
+                  concurrencyPolicy:  
+                    type: string  
+                    enum: ["Allow", "Forbid", "Replace"]  
+                    description: "Concurrency policy for CronJob"  
+                  suspend:  
+                    type: boolean  
+                    description: "Whether to suspend CronJob"  
+                  startingDeadlineSeconds:  
+                    type: integer  
+                    description: "Starting deadline in seconds for CronJob"  
+                  successfulJobsHistoryLimit:  
+                    type: integer  
+                    description: "Jobs history to retain upon success (CronJob)"  
+                  failedJobsHistoryLimit:  
+                    type: integer  
+                    description: "Jobs history to retain upon failure (CronJob)"  
+                  # Job-specific fields (also used in CronJob's jobTemplate spec)  
+                  parallelism:  
+                    type: integer  
+                    description: "Parallelism (how many pods to run in parallel for a Job)"  
+                  completions:  
+                    type: integer  
+                    description: "Completions (total pods to complete for the Job)"  
+                  backoffLimit:  
+                    type: integer  
+                    description: "Backoff limit for Job retries"  
+                  activeDeadlineSeconds:  
+                    type: integer  
+                    description: "Active deadline (seconds) for the Job"  
+                  ttlSecondsAfterFinished:  
+                    type: integer  
+                    description: "TTL after Job finishes (for cleanup)"  
+                # No required fields within config (they may vary by kind)  
+              nameOverride:  
+                type: string  
+                description: "Explicit name for this resource (overrides generated name)"  
+              enabled:  
+                type: boolean  
+                default: true  
+                description: "Whether to create this resource"  
+              clusterScope:  
+                type: boolean  
+                default: false  
+                description: "If true, this resource is cluster-scoped (no namespace will be set)"  
+              dependsOn:  
+                type: array  
+                items:  
+                  type: string  
+                description: "Names of resources this resource depends on (by their generated or overridden name)"  
+            required: ["apiVersion", "kind", "config"]  
+      required: ["metadata", "resources"]  
+
+  resources:                                 # Templated resources to create  
+    - id: dynamic-resources  
+      template: |                             # Go templating for dynamic resource generation
+        {{- range $index, $resource := .spec.resources }}
+        {{- if $resource.enabled }}
+        --- 
+        apiVersion: {{ $resource.apiVersion }}
+        kind: {{ $resource.kind }}
+        metadata:
+          name: {{ if $resource.nameOverride }}{{ $resource.nameOverride }}{{ else }}{{ $.spec.metadata.name }}-{{ $resource.kind | lower }}-{{ $index }}{{ end }}
+        {{- if not $resource.clusterScope }}
+          namespace: {{ $.spec.metadata.namespace }}
+        {{- end }}
+          labels:
+            app.kubernetes.io/name: {{ $.spec.metadata.name }}
+            app.kubernetes.io/instance: {{ $.spec.metadata.name }}
+            app.kubernetes.io/managed-by: kro
+            {{- range $key, $value := $.spec.metadata.labels }}
+            {{ $key }}: {{ $value }}
+            {{- end }}
+          annotations:
+            kro.run/resource-group: {{ $.metadata.name }}
+            {{- range $key, $value := $.spec.metadata.annotations }}
+            {{ $key }}: {{ $value }}
+            {{- end }}
+        spec:
+          {{- /* --- Workloads: Deployment --- */}}
+          {{- if eq $resource.kind "Deployment" }}
+          replicas: {{ $resource.config.replicas | default 1 }}
+          selector:
+            matchLabels:
+              app.kubernetes.io/name: {{ $.spec.metadata.name }}
+              app.kubernetes.io/instance: {{ $.spec.metadata.name }}
+          template:
+            metadata:
+              labels:
+                app.kubernetes.io/name: {{ $.spec.metadata.name }}
+                app.kubernetes.io/instance: {{ $.spec.metadata.name }}
+            spec:
+              containers:
+                {{- range $container := $resource.config.containers }}
+                - name: {{ $container.name }}
+                  image: {{ $container.image }}
+                  {{- if $container.ports }}
+                  ports:
+                    {{- range $port := $container.ports }}
+                    - containerPort: {{ $port.containerPort }}
+                      protocol: {{ $port.protocol | default "TCP" }}
+                    {{- end }}
+                  {{- end }}
+                  {{- if $container.env }}
+                  env:
+                    {{- range $env := $container.env }}
+                    - name: {{ $env.name }}
+                      {{- if $env.value }}
+                      value: {{ $env.value }}
+                      {{- else if $env.valueFrom }}
+                      valueFrom: {{ $env.valueFrom | toYaml | nindent 24 }}
+                      {{- end }}
+                    {{- end }}
+                  {{- end }}
+                  {{- if $container.resources }}
+                  resources: {{ $container.resources | toYaml | nindent 20 }}
+                  {{- end }}
+                  {{/* Include any additional container fields (e.g., volumeMounts) not explicitly handled above */}}
+                  {{- $contExtra := omit $container "name" "image" "ports" "env" "resources" }}
+                  {{- if $contExtra }}
+                  {{ $contExtra | toYaml | nindent 18 }}
+                  {{- end }}
+                {{- end }}
+              {{- /* Pod-level fields for Deployment (volumes, nodeSelector, etc.) */}}
+              {{- if $resource.config.volumes }}
+              volumes: {{ $resource.config.volumes | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.nodeSelector }}
+              nodeSelector: {{ $resource.config.nodeSelector | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.tolerations }}
+              tolerations: {{ $resource.config.tolerations | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.affinity }}
+              affinity: {{ $resource.config.affinity | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.serviceAccountName }}
+              serviceAccountName: {{ $resource.config.serviceAccountName }}
+              {{- end }}
+          {{- /* Include any additional Deployment spec fields (strategy, etc.) not explicitly handled */}}
+          {{- $depExtra := omit $resource.config "replicas" "containers" "volumes" "nodeSelector" "tolerations" "affinity" "serviceAccountName" }}
+          {{- if $depExtra }}
+          {{ $depExtra | toYaml | nindent 10 }}
+          {{- end }}
+
+          {{- /* --- Workloads: StatefulSet --- */}}
+          {{- else if eq $resource.kind "StatefulSet" }}
+          replicas: {{ $resource.config.replicas | default 1 }}
+          serviceName: {{ $resource.config.serviceName | default (printf "%s-headless" $.spec.metadata.name) }}
+          selector:
+            matchLabels:
+              app.kubernetes.io/name: {{ $.spec.metadata.name }}
+              app.kubernetes.io/instance: {{ $.spec.metadata.name }}
+          template:
+            metadata:
+              labels:
+                app.kubernetes.io/name: {{ $.spec.metadata.name }}
+                app.kubernetes.io/instance: {{ $.spec.metadata.name }}
+            spec:
+              containers:
+                {{- range $container := $resource.config.containers }}
+                - name: {{ $container.name }}
+                  image: {{ $container.image }}
+                  {{- if $container.ports }}
+                  ports:
+                    {{- range $port := $container.ports }}
+                    - containerPort: {{ $port.containerPort }}
+                      protocol: {{ $port.protocol | default "TCP" }}
+                    {{- end }}
+                  {{- end }}
+                  {{- if $container.env }}
+                  env:
+                    {{- range $env := $container.env }}
+                    - name: {{ $env.name }}
+                      {{- if $env.value }}
+                      value: {{ $env.value }}
+                      {{- else if $env.valueFrom }}
+                      valueFrom: {{ $env.valueFrom | toYaml | nindent 24 }}
+                      {{- end }}
+                    {{- end }}
+                  {{- end }}
+                  {{- if $container.resources }}
+                  resources: {{ $container.resources | toYaml | nindent 20 }}
+                  {{- end }}
+                  {{- $contExtra := omit $container "name" "image" "ports" "env" "resources" }}
+                  {{- if $contExtra }}
+                  {{ $contExtra | toYaml | nindent 18 }}
+                  {{- end }}
+                {{- end }}
+              {{- /* Pod-level fields for StatefulSet */}}
+              {{- if $resource.config.volumes }}
+              volumes: {{ $resource.config.volumes | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.nodeSelector }}
+              nodeSelector: {{ $resource.config.nodeSelector | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.tolerations }}
+              tolerations: {{ $resource.config.tolerations | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.affinity }}
+              affinity: {{ $resource.config.affinity | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.serviceAccountName }}
+              serviceAccountName: {{ $resource.config.serviceAccountName }}
+              {{- end }}
+          {{- /* Additional StatefulSet spec fields (volumeClaimTemplates, updateStrategy, etc.) */}}
+          {{- $stsExtra := omit $resource.config "replicas" "serviceName" "containers" "volumes" "nodeSelector" "tolerations" "affinity" "serviceAccountName" }}
+          {{- if $stsExtra }}
+          {{ $stsExtra | toYaml | nindent 10 }}
+          {{- end }}
+
+          {{- /* --- Workloads: DaemonSet --- */}}
+          {{- else if eq $resource.kind "DaemonSet" }}
+          selector:
+            matchLabels:
+              app.kubernetes.io/name: {{ $.spec.metadata.name }}
+              app.kubernetes.io/instance: {{ $.spec.metadata.name }}
+          template:
+            metadata:
+              labels:
+                app.kubernetes.io/name: {{ $.spec.metadata.name }}
+                app.kubernetes.io/instance: {{ $.spec.metadata.name }}
+            spec:
+              containers:
+                {{- range $container := $resource.config.containers }}
+                - name: {{ $container.name }}
+                  image: {{ $container.image }}
+                  {{- if $container.ports }}
+                  ports:
+                    {{- range $port := $container.ports }}
+                    - containerPort: {{ $port.containerPort }}
+                      protocol: {{ $port.protocol | default "TCP" }}
+                    {{- end }}
+                  {{- end }}
+                  {{- if $container.env }}
+                  env:
+                    {{- range $env := $container.env }}
+                    - name: {{ $env.name }}
+                      {{- if $env.value }}
+                      value: {{ $env.value }}
+                      {{- else if $env.valueFrom }}
+                      valueFrom: {{ $env.valueFrom | toYaml | nindent 24 }}
+                      {{- end }}
+                    {{- end }}
+                  {{- end }}
+                  {{- if $container.resources }}
+                  resources: {{ $container.resources | toYaml | nindent 20 }}
+                  {{- end }}
+                  {{- $contExtra := omit $container "name" "image" "ports" "env" "resources" }}
+                  {{- if $contExtra }}
+                  {{ $contExtra | toYaml | nindent 18 }}
+                  {{- end }}
+                {{- end }}
+              {{- /* Pod-level fields for DaemonSet */}}
+              {{- if $resource.config.volumes }}
+              volumes: {{ $resource.config.volumes | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.nodeSelector }}
+              nodeSelector: {{ $resource.config.nodeSelector | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.tolerations }}
+              tolerations: {{ $resource.config.tolerations | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.affinity }}
+              affinity: {{ $resource.config.affinity | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.serviceAccountName }}
+              serviceAccountName: {{ $resource.config.serviceAccountName }}
+              {{- end }}
+          {{- /* Additional DaemonSet spec fields (updateStrategy, etc.) */}}
+          {{- $dsExtra := omit $resource.config "containers" "volumes" "nodeSelector" "tolerations" "affinity" "serviceAccountName" }}
+          {{- if $dsExtra }}
+          {{ $dsExtra | toYaml | nindent 10 }}
+          {{- end }}
+
+          {{- /* --- Workloads: Job --- */}}
+          {{- else if eq $resource.kind "Job" }}
+          {{- if $resource.config.parallelism }}parallelism: {{ $resource.config.parallelism }}{{ end }}
+          {{- if $resource.config.completions }}completions: {{ $resource.config.completions }}{{ end }}
+          {{- if $resource.config.backoffLimit }}backoffLimit: {{ $resource.config.backoffLimit }}{{ end }}
+          {{- if $resource.config.activeDeadlineSeconds }}activeDeadlineSeconds: {{ $resource.config.activeDeadlineSeconds }}{{ end }}
+          {{- if $resource.config.ttlSecondsAfterFinished }}ttlSecondsAfterFinished: {{ $resource.config.ttlSecondsAfterFinished }}{{ end }}
+          template:
+            metadata:
+              labels:
+                app.kubernetes.io/name: {{ $.spec.metadata.name }}
+                app.kubernetes.io/instance: {{ $.spec.metadata.name }}
+            spec:
+              restartPolicy: {{ $resource.config.restartPolicy | default "OnFailure" }}
+              containers:
+                {{- range $container := $resource.config.containers }}
+                - name: {{ $container.name }}
+                  image: {{ $container.image }}
+                  {{- if $container.ports }}
+                  ports:
+                    {{- range $port := $container.ports }}
+                    - containerPort: {{ $port.containerPort }}
+                      protocol: {{ $port.protocol | default "TCP" }}
+                    {{- end }}
+                  {{- end }}
+                  {{- if $container.env }}
+                  env:
+                    {{- range $env := $container.env }}
+                    - name: {{ $env.name }}
+                      {{- if $env.value }}
+                      value: {{ $env.value }}
+                      {{- else if $env.valueFrom }}
+                      valueFrom: {{ $env.valueFrom | toYaml | nindent 24 }}
+                      {{- end }}
+                    {{- end }}
+                  {{- end }}
+                  {{- if $container.resources }}
+                  resources: {{ $container.resources | toYaml | nindent 20 }}
+                  {{- end }}
+                  {{- $contExtra := omit $container "name" "image" "ports" "env" "resources" }}
+                  {{- if $contExtra }}
+                  {{ $contExtra | toYaml | nindent 18 }}
+                  {{- end }}
+                {{- end }}
+              {{- /* Pod-level fields for Job */}}
+              {{- if $resource.config.volumes }}
+              volumes: {{ $resource.config.volumes | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.nodeSelector }}
+              nodeSelector: {{ $resource.config.nodeSelector | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.tolerations }}
+              tolerations: {{ $resource.config.tolerations | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.affinity }}
+              affinity: {{ $resource.config.affinity | toYaml | nindent 16 }}
+              {{- end }}
+              {{- if $resource.config.serviceAccountName }}
+              serviceAccountName: {{ $resource.config.serviceAccountName }}
+              {{- end }}
+          {{- /* Additional Job spec fields (none likely beyond above, but include any extras) */}}
+          {{- $jobExtra := omit $resource.config "parallelism" "completions" "backoffLimit" "activeDeadlineSeconds" "ttlSecondsAfterFinished" "containers" "restartPolicy" "volumes" "nodeSelector" "tolerations" "affinity" "serviceAccountName" }}
+          {{- if $jobExtra }}
+          {{ $jobExtra | toYaml | nindent 10 }}
+          {{- end }}
+
+          {{- /* --- Workloads: CronJob --- */}}
+          {{- else if eq $resource.kind "CronJob" }}
+          schedule: {{ $resource.config.schedule }}{{/* (required for CronJob) */}}
+          {{- if $resource.config.concurrencyPolicy }}concurrencyPolicy: {{ $resource.config.concurrencyPolicy }}{{ end }}
+          {{- if $resource.config.suspend }}suspend: {{ $resource.config.suspend }}{{ end }}
+          {{- if $resource.config.startingDeadlineSeconds }}startingDeadlineSeconds: {{ $resource.config.startingDeadlineSeconds }}{{ end }}
+          {{- if $resource.config.successfulJobsHistoryLimit }}successfulJobsHistoryLimit: {{ $resource.config.successfulJobsHistoryLimit }}{{ end }}
+          {{- if $resource.config.failedJobsHistoryLimit }}failedJobsHistoryLimit: {{ $resource.config.failedJobsHistoryLimit }}{{ end }}
+          jobTemplate:
+            spec:
+              {{- if $resource.config.parallelism }}parallelism: {{ $resource.config.parallelism }}{{ end }}
+              {{- if $resource.config.completions }}completions: {{ $resource.config.completions }}{{ end }}
+              {{- if $resource.config.backoffLimit }}backoffLimit: {{ $resource.config.backoffLimit }}{{ end }}
+              {{- if $resource.config.activeDeadlineSeconds }}activeDeadlineSeconds: {{ $resource.config.activeDeadlineSeconds }}{{ end }}
+              {{- if $resource.config.ttlSecondsAfterFinished }}ttlSecondsAfterFinished: {{ $resource.config.ttlSecondsAfterFinished }}{{ end }}
+              template:
+                metadata:
+                  labels:
+                    app.kubernetes.io/name: {{ $.spec.metadata.name }}
+                    app.kubernetes.io/instance: {{ $.spec.metadata.name }}
+                spec:
+                  restartPolicy: {{ $resource.config.restartPolicy | default "OnFailure" }}
+                  containers:
+                    {{- range $container := $resource.config.containers }}
+                    - name: {{ $container.name }}
+                      image: {{ $container.image }}
+                      {{- if $container.ports }}
+                      ports:
+                        {{- range $port := $container.ports }}
+                        - containerPort: {{ $port.containerPort }}
+                          protocol: {{ $port.protocol | default "TCP" }}
+                        {{- end }}
+                      {{- end }}
+                      {{- if $container.env }}
+                      env:
+                        {{- range $env := $container.env }}
+                        - name: {{ $env.name }}
+                          {{- if $env.value }}
+                          value: {{ $env.value }}
+                          {{- else if $env.valueFrom }}
+                          valueFrom: {{ $env.valueFrom | toYaml | nindent 26 }}
+                          {{- end }}
+                        {{- end }}
+                      {{- end }}
+                      {{- if $container.resources }}
+                      resources: {{ $container.resources | toYaml | nindent 22 }}
+                      {{- end }}
+                      {{- $contExtra := omit $container "name" "image" "ports" "env" "resources" }}
+                      {{- if $contExtra }}
+                      {{ $contExtra | toYaml | nindent 20 }}
+                      {{- end }}
+                    {{- end }}
+                  {{- /* Pod-level fields for CronJob's Job template */}}
+                  {{- if $resource.config.volumes }}
+                  volumes: {{ $resource.config.volumes | toYaml | nindent 18 }}
+                  {{- end }}
+                  {{- if $resource.config.nodeSelector }}
+                  nodeSelector: {{ $resource.config.nodeSelector | toYaml | nindent 18 }}
+                  {{- end }}
+                  {{- if $resource.config.tolerations }}
+                  tolerations: {{ $resource.config.tolerations | toYaml | nindent 18 }}
+                  {{- end }}
+                  {{- if $resource.config.affinity }}
+                  affinity: {{ $resource.config.affinity | toYaml | nindent 18 }}
+                  {{- end }}
+                  {{- if $resource.config.serviceAccountName }}
+                  serviceAccountName: {{ $resource.config.serviceAccountName }}
+                  {{- end }}
+              {{- /* Additional jobTemplate spec fields if any extra provided */}}
+              {{- $cjJobExtra := omit $resource.config "schedule" "concurrencyPolicy" "suspend" "startingDeadlineSeconds" "successfulJobsHistoryLimit" "failedJobsHistoryLimit" "parallelism" "completions" "backoffLimit" "activeDeadlineSeconds" "ttlSecondsAfterFinished" "containers" "restartPolicy" "volumes" "nodeSelector" "tolerations" "affinity" "serviceAccountName" }}
+              {{- if $cjJobExtra }}
+              {{ $cjJobExtra | toYaml | nindent 14 }}
+              {{- end }}
+
+          {{- /* --- Core Services --- */}}
+          {{- else if eq $resource.kind "Service" }}
+          type: {{ $resource.config.serviceType | default "ClusterIP" }}
+          selector:
+            {{- if $resource.config.selector }}
+            {{- range $key, $value := $resource.config.selector }}
+            {{ $key }}: {{ $value }}
+            {{- end }}
+            {{- else }}
+            app.kubernetes.io/name: {{ $.spec.metadata.name }}
+            app.kubernetes.io/instance: {{ $.spec.metadata.name }}
+            {{- end }}
+          ports:
+            {{- range $container := $resource.config.containers }}
+            {{- range $port := $container.ports }}
+            - port: {{ $port.port | default $port.containerPort }}
+              targetPort: {{ $port.containerPort }}
+              protocol: {{ $port.protocol | default "TCP" }}
+            {{- end }}
+            {{- end }}
+
+          {{- /* --- ConfigMap --- */}}
+          {{- else if eq $resource.kind "ConfigMap" }}
+          {{- if $resource.config.data }}
+          data: {{ $resource.config.data | toYaml | nindent 10 }}
+          {{- end }}
+          
+          {{- /* --- Secret --- */}}
+          {{- else if eq $resource.kind "Secret" }}
+          type: {{ $resource.config.type | default "Opaque" }}
+          {{- if $resource.config.data }}
+          data: {{ $resource.config.data | toYaml | nindent 10 }}
+          {{- end }}
+          
+          {{- /* --- PVC --- */}}
+          {{- else if eq $resource.kind "PersistentVolumeClaim" }}
+          accessModes: {{ $resource.config.accessModes | default (list "ReadWriteOnce") | toYaml | nindent 10 }}
+          resources:
+            requests:
+              storage: {{ $resource.config.storage | default "1Gi" }}
+          {{- if $resource.config.storageClassName }}
+          storageClassName: {{ $resource.config.storageClassName }}
+          {{- end }}
+          
+          {{- /* --- Ingress --- */}}
+          {{- else if eq $resource.kind "Ingress" }}
+          {{- if $resource.config.ingressClassName }}
+          ingressClassName: {{ $resource.config.ingressClassName }}
+          {{- end }}
+          {{- if $resource.config.tls }}
+          tls: {{ $resource.config.tls | toYaml | nindent 10 }}
+          {{- end }}
+          {{- if $resource.config.rules }}
+          rules: {{ $resource.config.rules | toYaml | nindent 10 }}
+          {{- end }}
+          
+          {{- /* --- Generic fallback for any other resource type --- */}}
+          {{- else }}
+          {{- /* Directly insert the provided config as the spec (assuming config = spec) */}}
+          {{- $resource.config | toYaml | nindent 10 }}
+          {{- end }}
+        {{- end }}
+        {{- end }}
+

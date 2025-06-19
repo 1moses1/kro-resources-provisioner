@@ -1,0 +1,280 @@
+apiVersion: apiextensions.k8s.io/v1  
+kind: CustomResourceDefinition  
+metadata:  
+  name: genericresourcegroups.kro.run  
+spec:  
+  group: kro.run  
+  names:  
+    kind: GenericResourceGroup  
+    listKind: GenericResourceGroupList  
+    plural: genericresourcegroups  
+    singular: genericresourcegroup  
+    shortNames:  
+      - grg  
+  scope: Namespaced  
+  versions:  
+    - name: v1alpha1  
+      served: true  
+      storage: true  
+      schema:  
+        openAPIV3Schema:  
+          type: object  
+          properties:  
+            apiVersion:  
+              type: string  
+            kind:  
+              type: string  
+            metadata:  
+              type: object  
+            spec:  
+              type: object  
+              properties:  
+                metadata:                                # Common metadata for all resources  
+                  type: object  
+                  properties:  
+                    name:  
+                      type: string  
+                      description: "Base name for resources"  
+                    namespace:  
+                      type: string  
+                      description: "Default namespace for resources"  
+                      default: "default"  
+                    labels:  
+                      type: object  
+                      additionalProperties:  
+                        type: string  
+                      description: "Labels to apply to all resources"  
+                    annotations:  
+                      type: object  
+                      additionalProperties:  
+                        type: string  
+                      description: "Annotations to apply to all resources"  
+                  required: ["name"]  
+                resources:                               # List of resource definitions  
+                  type: array  
+                  description: "Resources to create in this group"  
+                  items:  
+                    type: object  
+                    properties:  
+                      apiVersion:  
+                        type: string  
+                        description: "API version of the resource"  
+                      kind:  
+                        type: string  
+                        description: "Kind of the resource"  
+                      config:  
+                        type: object  
+                        description: "Resource configuration (corresponds to the resource's spec)"  
+                        additionalProperties: true  
+                        properties:  
+                          replicas:  
+                            type: integer  
+                            minimum: 0  
+                            description: "Number of replicas for Deployment/StatefulSet"  
+                          containers:  
+                            type: array  
+                            items:  
+                              type: object  
+                              additionalProperties: true  
+                              properties:  
+                                name:  
+                                  type: string  
+                                image:  
+                                  type: string  
+                                ports:  
+                                  type: array  
+                                  items:  
+                                    type: object  
+                                    additionalProperties: true  
+                                    properties:  
+                                      containerPort:  
+                                        type: integer  
+                                        minimum: 1  
+                                        maximum: 65535  
+                                      protocol:  
+                                        type: string  
+                                        enum: ["TCP", "UDP", "SCTP"]  
+                                        default: "TCP"  
+                                      port:  
+                                        type: integer  
+                                        description: "Service port number (if different from containerPort)"  
+                                env:  
+                                  type: array  
+                                  items:  
+                                    type: object  
+                                    properties:  
+                                      name:  
+                                        type: string  
+                                      value:  
+                                        type: string  
+                                      valueFrom:  
+                                        type: object  
+                                        additionalProperties: true  
+                                resources:  
+                                  type: object  
+                                  properties:  
+                                    requests:  
+                                      type: object  
+                                      additionalProperties: true  
+                                    limits:  
+                                      type: object  
+                                      additionalProperties: true  
+                          serviceType:  
+                            type: string  
+                            enum: ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"]  
+                            default: "ClusterIP"  
+                            description: "Service type"  
+                          selector:  
+                            type: object  
+                            additionalProperties:  
+                              type: string  
+                            description: "Selector labels for services, etc."  
+                          data:  
+                            type: object  
+                            additionalProperties: true  
+                            description: "Data for ConfigMaps/Secrets or similar"  
+                          type:  
+                            type: string  
+                            description: "Type of Secret or other resource"  
+                          accessModes:  
+                            type: array  
+                            items:  
+                              type: string  
+                            description: "Access modes for PVC"  
+                          storage:  
+                            type: string  
+                            description: "Storage request for PVC"  
+                          storageClassName:  
+                            type: string  
+                            description: "StorageClass for PVC"  
+                          ingressClassName:  
+                            type: string  
+                            description: "Ingress class name"  
+                          tls:  
+                            type: array  
+                            items:  
+                              type: object  
+                              additionalProperties: true  
+                            description: "TLS settings for Ingress"  
+                          rules:  
+                            type: array  
+                            items:  
+                              type: object  
+                              additionalProperties: true  
+                            description: "Ingress routing rules"  
+                          schedule:  
+                            type: string  
+                            description: "Cron schedule for CronJob"  
+                          concurrencyPolicy:  
+                            type: string  
+                            description: "CronJob concurrency policy"  
+                          suspend:  
+                            type: boolean  
+                            description: "CronJob suspend flag"  
+                          startingDeadlineSeconds:  
+                            type: integer  
+                            description: "CronJob starting deadline"  
+                          successfulJobsHistoryLimit:  
+                            type: integer  
+                            description: "CronJob successful job history limit"  
+                          failedJobsHistoryLimit:  
+                            type: integer  
+                            description: "CronJob failed job history limit"  
+                          parallelism:  
+                            type: integer  
+                            description: "Job parallelism"  
+                          completions:  
+                            type: integer  
+                            description: "Job completions"  
+                          backoffLimit:  
+                            type: integer  
+                            description: "Job backoff limit"  
+                          activeDeadlineSeconds:  
+                            type: integer  
+                            description: "Job active deadline seconds"  
+                          ttlSecondsAfterFinished:  
+                            type: integer  
+                            description: "Job TTL after finished"  
+                      nameOverride:  
+                        type: string  
+                        description: "Override for the resource name"  
+                      enabled:  
+                        type: boolean  
+                        default: true  
+                        description: "Whether to create this resource"  
+                      clusterScope:  
+                        type: boolean  
+                        default: false  
+                        description: "True if the resource is cluster-scoped (no namespace)"  
+                      dependsOn:  
+                        type: array  
+                        items:  
+                          type: string  
+                        description: "Names of resources this one depends on"  
+                    required: ["apiVersion", "kind", "config"]  
+              required: ["metadata", "resources"]  
+            status:                                     # Status fields populated by the controller  
+              type: object  
+              properties:  
+                state:  
+                  type: string  
+                  description: "Overall state of the resource group"  
+                  enum: ["Ready", "Progressing", "Degraded", "Error", "Unknown"]  
+                conditions:  
+                  type: array  
+                  description: "Current conditions of the resource group"  
+                  items:  
+                    type: object  
+                    properties:  
+                      type:  
+                        type: string  
+                        description: "Condition type (e.g. Ready, Progressing, Degraded, Error)"  
+                      status:  
+                        type: string  
+                        description: "Condition status (True, False, Unknown)"  
+                        enum: ["True", "False", "Unknown"]  
+                      lastTransitionTime:  
+                        type: string  
+                        format: date-time  
+                        description: "Last transition time for this condition"  
+                      reason:  
+                        type: string  
+                        description: "Reason for the condition's last change"  
+                      message:  
+                        type: string  
+                        description: "Human-readable message about the condition"  
+                    required: ["type", "status"]  
+                resourceCount:  
+                  type: integer  
+                  description: "Number of resources managed by this group"  
+                createdResources:  
+                  type: array  
+                  description: "List of resources created by this group"  
+                  items:  
+                    type: object  
+                    properties:  
+                      apiVersion:  
+                        type: string  
+                      kind:  
+                        type: string  
+                      name:  
+                        type: string  
+                      namespace:  
+                        type: string  
+                      uid:  
+                        type: string  
+      subresources:  
+        status: {}  
+      additionalPrinterColumns:                 # Columns for kubectl get output  
+        - name: State  
+          type: string  
+          description: "High-level state of the group"  
+          jsonPath: .status.state  
+        - name: Resources  
+          type: integer  
+          description: "Count of resources in the group"  
+          jsonPath: .status.resourceCount  
+        - name: Age  
+          type: date  
+          jsonPath: .metadata.creationTimestamp  
+
