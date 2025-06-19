@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+🧩 Kubernetes Manifest Builder (KRO Provisioner UI)
+A dynamic, interactive manifest generator built with Next.js, Tailwind CSS, and ShadCN UI, powered by OpenAI and KRO (Kubernetes Resource Orchestrator).
+This app simplifies the process of creating and applying Kubernetes resources by guiding users step-by-step and generating GenericCRD + ResourceGraphDefinition-compliant manifests, suitable for declarative automation via KRO.
 
-## Getting Started
+✨ Features
+✅ Step-by-step UI wizard:
+CR Metadata → Group Metadata → Resources → Review
+✅ Dynamic form rendering for Kubernetes kinds (Deployment, Service, ConfigMap, Secret, PVC, etc.)
+✅ Key-value list editing for labels, annotations, secrets, and configs
+✅ YAML preview (coming soon)
+✅ OpenAI Assistant Panel to suggest resource additions interactively
+✅ Apply button for executing kubectl apply on a Linux host shell
+✅ Built for Linux: tested on Ubuntu 22.04 with Node.js and kubectl installed
 
-First, run the development server:
+🚀 Getting Started
+1. Clone the repository
+git clone https://github.com/<your-username>/kro-resources-provisioner.git
+cd kro-resources-provisioner
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
+Or if you're already in your local folder:
+git init
+git remote add origin https://github.com/<your-username>/kro-resources-provisioner.git
+git add .
+git commit -m "Initial commit"
+git push -u origin main --force  # (if overwriting remote)
+
+2. Install dependencies
+pnpm install
+
+Make sure you have Node.js and pnpm installed.
+3. Start the development server
 pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open your browser at: http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+🧩 Usage Guide
+CR Metadata:
+Set manifest name and top-level namespace for the KRO instance.
+Group Metadata:
+Set a base name that prefixes all resource names. Add shared labels and annotations.
+Resources:
+Add Kubernetes resources dynamically. Supported kinds: Deployment, Service, ConfigMap, Secret, PVC, Ingress, Job, CronJob, etc.
+Review:
+See the final YAML (upcoming). Use "Apply" to deploy directly via kubectl.
+Each step builds structured YAML matching the KRO GenericCRD and ResourceGraphDefinition spec.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+🤖 OpenAI Assistant
+An embedded AI assistant panel (powered by GPT-4) allows:
+Contextual suggestions on which resource to add next
+Guidance on Kubernetes best practices
+Answering dev questions inline
+Just enter your OpenAI API key in the sidebar to activate the assistant.
 
-## Learn More
+📦 Tech Stack
+Next.js 15
+Tailwind CSS
+shadcn/ui
+TypeScript
+KRO (Custom Resource Orchestrator)
+OpenAI API
 
-To learn more about Next.js, take a look at the following resources:
+🧪 Planned Features
+✅ Dynamic schema validation from OpenAPIV3Schema
+🧾 Real-time YAML preview + export
+📎 kubectl apply via shell execution from backend
+🔐 Role-based conditionals in UI (e.g., RBAC fields)
+🌐 Multi-cluster switching (future support)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+👤 Author
+Made with ❤️ by Moise Iradukunda Ingabire
+ GitHub: @1moses1
+ 
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+🤝 Contributing
+Contributions are welcome! Please feel free to submit a Pull Request.
+Fork the project
+Create your feature branch (git checkout -b feature/AmazingFeature)
+Commit your changes (git commit -m 'Add some AmazingFeature')
+Push to the branch (git push origin feature/AmazingFeature)
+Open a Pull Request
 
-## Deploy on Vercel
+📞 Support
+If you have any questions or need support, please open an issue on GitHub or reach out to the maintainer.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+🙏 Acknowledgments
+Thanks to the KRO team for the amazing Kubernetes orchestration framework
+Built with love using modern web technologies
+Special thanks to the open-source community
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+📜 License
+This project is licensed under the MIT License - see the LICENSE file for details.
