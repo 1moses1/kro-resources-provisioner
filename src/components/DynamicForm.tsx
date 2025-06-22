@@ -13,6 +13,20 @@ const accessModeOptions = ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"];
 type KeyValueEntry = { key: string; value: string }; 
 // // --- FIX END ---
 
+// Array of all resource kinds supported by the form's dynamic logic. 
+const supportedKinds = [ 
+  "Deployment", 
+  "StatefulSet", 
+  "DaemonSet", 
+  "Service", 
+  "ConfigMap", 
+  "Secret", 
+  "PersistentVolumeClaim", 
+  "Ingress", 
+  "Job", 
+  "CronJob", 
+  "ReplicaSet", 
+];
 
 interface DynamicFormProps {
   baseName: string;  // base name for computing default resource names
@@ -302,16 +316,20 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
           />
         </div>
         <div>
-          <label className="block font-medium mb-1">Kind <span className="text-red-600">*</span></label>
-          <input 
-            type="text" 
-            className="w-full border rounded px-2 py-1"
-            value={kind}
-            onChange={(e) => setKind(e.target.value)}
-            placeholder="e.g. Deployment"
-            required
-          />
-        </div>
+  <label className="block font-medium mb-1">Kind <span className="text-red-600">*</span></label>
+  <select 
+    className="w-full border rounded px-2 py-1"
+    value={kind}
+    onChange={(e) => setKind(e.target.value)}
+    required
+  >
+    <option value="">-- Select Kind --</option>
+    {supportedKinds.map((k) => (
+      <option key={k} value={k}>{k}</option>
+    ))}
+  </select>
+</div>
+
         <div>
           <label className="block font-medium mb-1">Name Override</label>
           <input 
