@@ -57,14 +57,27 @@ export default function HomePage() {
   // Step 2: Group spec metadata (will go under spec.metadata in YAML)
   const [baseName, setBaseName] = useState("");  // spec.metadata.name (required)
   const [baseNamespace, setBaseNamespace] = useState("default");  // spec.metadata.namespace
-  const [labels, setLabels] = useState<Record<string, string>>({});
-  const [annotations, setAnnotations] = useState<Record<string, string>>({});
+  // Labels and annotations for the group spec
+  // These will be applied to all resources in the group
+  // and will go under spec.metadata.labels/annotations in YAML
+  const [labels, setLabels] = useState<KeyValueEntry[]>([]);
+  const [annotations, setAnnotations] = useState<KeyValueEntry[]>([]);
 
   // Step 3: Resources list (each resource spec as per schema)
   const [resources, setResources] = useState<ResourceSpec[]>([]);
 
   // Track if apply is in progress or done
   const [applyResult, setApplyResult] = useState<{success: boolean; message: string} | null>(null);
+
+  // Helper type for key-value entries (used in KeyValueList)
+  const entriesToRecord = (entries: KeyValueEntry[]): Record<string, string> => {
+    return entries.reduce((acc, { key, value }) => {
+      if (key.trim()) {
+        acc[key.trim()] = value;
+      }
+      return acc;
+    }, {} as Record<string, string>);
+  };
 
   // Helper to construct the manifest object from current state
   const buildManifestObject = (): any => {
@@ -79,9 +92,11 @@ export default function HomePage() {
         metadata: {
           name: baseName || "",
           namespace: baseNamespace || "default",
-          labels: { ...labels },
-          annotations: { ...annotations }
+          // Convert arrays to objects for the final YAML output
+          labels: entriesToRecord(labels),
+          annotations: entriesToRecord(annotations)
         },
+        // Resources will be filled in below
         resources: [] as any[]
       }
     };
@@ -196,8 +211,8 @@ export default function HomePage() {
   };
 
   // Helper: update labels/annotations state from child component (KeyValueList)
-  const handleUpdateLabels = (newLabels: Record<string, string>) => setLabels(newLabels);
-  const handleUpdateAnnotations = (newAnn: Record<string, string>) => setAnnotations(newAnn);
+  // const handleUpdateLabels = (newLabels: Record<string, string>) => setLabels(newLabels);
+  // const handleUpdateAnnotations = (newAnn: Record<string, string>) => setAnnotations(newAnn);
 
   // Helper: add a new resource (called by DynamicForm when a resource is completed)
   const handleAddResource = (resource: ResourceSpec) => {
@@ -273,14 +288,8 @@ export default function HomePage() {
           <div>
             <label className="block font-medium mb-1">Labels (apply to all resources)</label>
             <KeyValueList 
-              entries={Object.entries(labels).map(([k,v]) => ({ key: k, value: v }))}
-              onChange={(entries) => {
-                const newLabels: Record<string, string> = {};
-                entries.forEach(({key, value}) => {
-                  if (key) newLabels[key] = value;
-                });
-                handleUpdateLabels(newLabels);
-              }}
+              entries={labels}
+              onChange={setLabels}
               keyPlaceholder="label key"
               valuePlaceholder="label value"
             />
@@ -288,15 +297,9 @@ export default function HomePage() {
           <div>
             <label className="block font-medium mb-1">Annotations (apply to all resources)</label>
             <KeyValueList 
-              entries={Object.entries(annotations).map(([k,v]) => ({ key: k, value: v }))}
-              onChange={(entries) => {
-                const newAnn: Record<string, string> = {};
-                entries.forEach(({key, value}) => {
-                  if (key) newAnn[key] = value;
-                });
-                handleUpdateAnnotations(newAnn);
-              }}
-              keyPlaceholder="annotation key"
+              entries={annotations}
+              onChange={setAnnotations}
+              keyPlaceholder="annotation key" 
               valuePlaceholder="annotation value"
             />
           </div>
