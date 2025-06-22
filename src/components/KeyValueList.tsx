@@ -1,6 +1,12 @@
 "use client";
 import React from "react";
+import "highlight.js/styles/github.css"; // Import your preferred highlight.js theme
+import "./KeyValueList.css"; // Import your custom styles if needed
 
+export type KeyValueEntry = {
+  key: string;
+  value: string;
+};
 
 export interface KeyValueListProps {
   entries: { key: string; value: string }[];

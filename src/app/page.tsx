@@ -6,7 +6,7 @@ import { validateManifest } from "@/hooks/useSchemaValidator";
 import Stepper from "@/components/Stepper";
 import DynamicForm from "@/components/DynamicForm";
 import YamlPreview from "@/components/YamlPreview";
-import KeyValueList from "@/components/KeyValueList";
+import KeyValueList, { KeyValueEntry } from "@/components/KeyValueList";
 
 // Define TypeScript types for our form state (matching schema structure)
 interface ResourceConfig {
