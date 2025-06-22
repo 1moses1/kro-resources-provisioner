@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import KeyValueList from "@/components/KeyValueList";
+import { env } from "process";
 
 // Lists of known options for certain fields
 const serviceTypes = ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"];
@@ -108,6 +109,17 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
     if (!apiVersion || !kind) {
       return; // required fields
     }
+    // Convert container env vars to KeyValueEntry format
+    const finalContainers = containers.map(c => {
+      const envArray = Array.isArray(c.env) ? c.env : [];
+      return {
+        ...c,
+        env: envArray 
+          .map((e: KeyValueEntry) => ({ name: e.key, value: e.value }))
+          .filter((e: { name: string; value: string }) => e.name),
+      };
+    });
+
     const resource: any = {
       apiVersion,
       kind,
@@ -129,6 +141,7 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
 
     // Build config object based on filled fields
     if (replicas !== undefined) resource.config.replicas = replicas;
+    if (finalContainers.length > 0) resource.config.containers = [...finalContainers];
     if (containers.length > 0) resource.config.containers = [...containers];
     if (serviceType) resource.config.serviceType = serviceType;
     if (Object.keys(selector).length > 0) resource.config.selector = { ...selector };
@@ -593,11 +606,14 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
                 <div className="mb-2">
                   <label className="block text-sm font-medium">Environment Variables</label>
                   <KeyValueList
-                    entries={containersEnvArrays[idx] || []}
-                    onChange={(entries) => {
-                      const updateContainers = [...containers];
-                      updateContainers[idx] = entries.map(e => ({ name: e.key.trim(), value: e.value.trim() }));
-                      setContainers(updateContainers);
+
+                    entries={container.env || []}
+                    onChange={(newEnvEntries: KeyValueEntry[]) => {
+                      const updatedContainers = [...containers];
+                      const containerToUpdate = { ...updatedContainers[idx] };
+                      containerToUpdate.env = newEnvEntries;
+                      updatedContainers[idx] = containerToUpdate;
+                      setContainers(updatedContainers);
                     }}
                     keyPlaceholder="ENV_VAR"
                     valuePlaceholder="value"
