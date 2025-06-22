@@ -7,6 +7,12 @@ const serviceTypes = ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"];
 const concurrencyOptions = ["Allow", "Forbid", "Replace"];
 const accessModeOptions = ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"];
 
+// --- FIX START --- 
+// Define a reusable type for key-value pairs 
+type KeyValueEntry = { key: string; value: string }; 
+// // --- FIX END ---
+
+
 interface DynamicFormProps {
   baseName: string;  // base name for computing default resource names
   existingResources: Array<{ kind: string; nameOverride?: string }>;
@@ -26,8 +32,8 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
   const [replicas, setReplicas] = useState<number | undefined>();
   const [containers, setContainers] = useState<any[]>([]);
   const [serviceType, setServiceType] = useState<string>("");
-  const [selector, setSelector] = useState<Record<string, string>>({});
-  const [dataFields, setDataFields] = useState<Record<string, string>>({});
+  // const [selector, setSelector] = useState<Record<string, string>>({});
+  // const [dataFields, setDataFields] = useState<Record<string, string>>({});
   const [secretType, setSecretType] = useState<string>("");
   const [accessModes, setAccessModes] = useState<string[]>([]);
   const [storage, setStorage] = useState<string>("");
@@ -47,6 +53,22 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
   const [activeDeadlineSeconds, setActiveDeadlineSeconds] = useState<number | undefined>();
   const [ttlSecondsAfterFinished, setTtlSecondsAfterFinished] = useState<number | undefined>();
 
+  // --- FIX START ---   
+  // Change state for KeyValueList items to be an array of objects
+  const [selector, setSelector] = useState<KeyValueEntry[]>([]);   
+  const [dataFields, setDataFields] = useState<KeyValueEntry[]>([]);   
+  // --- FIX END ---      
+  // Helper to convert array of KeyValueEntry to a Record   
+  const entriesToRecord = (entries: KeyValueEntry[]): Record<string, string> => {     
+    return entries.reduce((acc, { key, value }) => {       
+      if (key.trim()) {         
+        acc[key.trim()] = value;       
+      }       
+      return acc;     
+    }, {} as Record<string, string>);   
+  };
+
+
   // Reset form fields after adding a resource
   const resetForm = () => {
     setApiVersion("");
@@ -58,8 +80,10 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
     setReplicas(undefined);
     setContainers([]);
     setServiceType("");
-    setSelector({});
-    setDataFields({});
+    setSelector([]);
+    setDataFields([]);
+    setSelector([]);
+    setDataFields([]);
     setSecretType("");
     setAccessModes([]);
     setStorage("");
@@ -93,6 +117,16 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
     if (enabled === false) resource.enabled = false;
     if (clusterScope === true) resource.clusterScope = true;
     if (dependsOn.length > 0) resource.dependsOn = [...dependsOn];
+    // --- FIX START ---     
+    // Convert state arrays back to objects for the final resource config     
+    const selectorAsRecord = entriesToRecord(selector);     
+    const dataAsRecord = entriesToRecord(dataFields);     
+    
+    if (Object.keys(selectorAsRecord).length > 0) resource.config.selector = selectorAsRecord;     
+    if (Object.keys(dataAsRecord).length > 0) resource.config.data = dataAsRecord;     
+    // --- FIX END ---
+
+
     // Build config object based on filled fields
     if (replicas !== undefined) resource.config.replicas = replicas;
     if (containers.length > 0) resource.config.containers = [...containers];
@@ -129,7 +163,7 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
       name: "",
       image: "",
       ports: [] as any[],
-      env: [] as any[],
+      env: [] as KeyValueEntry[],
       resources: { requests: {}, limits: {} }
     }]);
   };
@@ -181,14 +215,15 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
       return updated;
     });
   };
-  const updateContainerEnv = (containerIndex: number, envEntries: { key: string; value: string }[]) => {
+  const updateContainerEnv = (containerIndex: number, envEntries: KeyValueEntry[]) => {
     setContainers(prev => {
       const updated = [...prev];
-      const envArray = envEntries
-        .filter(e => e.key)  // ignore empty keys
-        .map(e => ({ name: e.key, value: e.value }));
       if (!updated[containerIndex]) return updated;
-      updated[containerIndex] = { ...updated[containerIndex], env: envArray };
+      const finalEnv = envEntries.map(entry => ({
+        name: entry.key.trim(),
+        value: entry.value.trim() || undefined // empty values should be undefined
+      })).filter(e => e.name); // filter out empty names
+      updated[containerIndex] = { ...updated[containerIndex], env: finalEnv };
       return updated;
     });
   };
@@ -224,10 +259,18 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
 
 
   // Precomputed values moved here (OUTSIDE JSX)
-  const selectorEntries = useMemo(() => Object.entries(selector).map(([k, v]) => ({ key: k, value: v })), [selector]);
-  const dataFieldsArray = useMemo(() => Object.entries(dataFields).map(([k, v]) => ({ key: k, value: v })), [dataFields]);
-  const containersEnvArrays = useMemo(() => containers.map(c => (c.env || []).map((e: any) => ({ key: e.name, value: e.value ?? "" }))), [containers]);
-  const secretDataArray = useMemo(() => Object.entries(dataFields).map(([k, v]) => ({ key: k, value: v })), [dataFields]);
+  // const selectorEntries = useMemo(() => Object.entries(selector).map(([k, v]) => ({ key: k, value: v })), [selector]);
+  // const dataFieldsArray = useMemo(() => Object.entries(dataFields).map(([k, v]) => ({ key: k, value: v })), [dataFields]);
+  // const containersEnvArrays = useMemo(() => containers.map(c => (c.env || []).map((e: any) => ({ key: e.name, value: e.value ?? "" }))), [containers]);
+  // const secretDataArray = useMemo(() => Object.entries(dataFields).map(([k, v]) => ({ key: k, value: v })), [dataFields]);
+
+  // Memoize the transformation for container env vars for rendering   
+  const containersEnvArrays = useMemo(() => {     
+    return containers.map(c => 
+      (c.env || []).map((e: any) => ({ key: e.name || '', value: e.value || '' }))
+    );
+  }, [containers]);   
+  // --- FIX END ---
 
 
   return (
@@ -551,7 +594,11 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
                   <label className="block text-sm font-medium">Environment Variables</label>
                   <KeyValueList
                     entries={containersEnvArrays[idx] || []}
-                    onChange={(entries) => updateContainerEnv(idx, entries)}
+                    onChange={(entries) => {
+                      const updateContainers = [...containers];
+                      updateContainers[idx] = entries.map(e => ({ name: e.key.trim(), value: e.value.trim() }));
+                      setContainers(updateContainers);
+                    }}
                     keyPlaceholder="ENV_VAR"
                     valuePlaceholder="value"
                   />
@@ -629,14 +676,8 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
             <div>
               <label className="block font-medium mb-1">Selector Labels</label>
               <KeyValueList 
-                entries={selectorEntries}
-                onChange={(entries) => {
-                  const updated: Record<string, string> = {};
-                  for (const { key, value } of entries) {
-                    if (key.trim()) updated[key] = value;
-                  }
-                  setSelector(updated);
-                }}
+                entries={selector}
+                onChange={setSelector}
                 keyPlaceholder="label"
                 valuePlaceholder="value"
               />
@@ -653,14 +694,8 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
           <div className="mb-4">
             <label className="block font-medium mb-1">Data (key-value pairs)</label>
             <KeyValueList
-              entries={dataFieldsArray}
-              onChange={(entries) => {
-                const updated: Record<string, string> = {};
-                for (const { key, value } of entries) {
-                  if (key.trim()) updated[key] = value;
-                }
-                setDataFields(updated);
-              }}
+              entries={dataFields}
+              onChange={setDataFields}
               keyPlaceholder="config key"
               valuePlaceholder="config value"
               valueAsTextarea={true}
@@ -685,14 +720,8 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
             </div>
             <label className="block font-medium mb-1">Data (key-value pairs)</label>
             <KeyValueList
-              entries={secretDataArray}
-              onChange={(entries) => {
-                const updated: Record<string, string> = {};
-                for (const { key, value } of entries) {
-                  if (key.trim()) updated[key] = value;
-                }
-                setDataFields(updated);
-              }}
+              entries={dataFields}
+              onChange={setDataFields}
               keyPlaceholder="secret key"
               valuePlaceholder="secret value (plain text)"
             />
