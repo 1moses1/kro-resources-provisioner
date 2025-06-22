@@ -222,6 +222,14 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
     return actualName;
   });
 
+
+  // Precomputed values moved here (OUTSIDE JSX)
+  const selectorEntries = useMemo(() => Object.entries(selector).map(([k, v]) => ({ key: k, value: v })), [selector]);
+  const dataFieldsArray = useMemo(() => Object.entries(dataFields).map(([k, v]) => ({ key: k, value: v })), [dataFields]);
+  const containersEnvArrays = useMemo(() => containers.map(c => (c.env || []).map((e: any) => ({ key: e.name, value: e.value ?? "" }))), [containers]);
+  const secretDataArray = useMemo(() => Object.entries(dataFields).map(([k, v]) => ({ key: k, value: v })), [dataFields]);
+
+
   return (
     <div className="p-4 border border-gray-300 rounded-md">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -541,8 +549,8 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
                 {/* Environment Variables */}
                 <div className="mb-2">
                   <label className="block text-sm font-medium">Environment Variables</label>
-                  <KeyValueList 
-                    entries={container.env ? container.env.map((e: any) => ({ key: e.name, value: e.value ?? "" })) : []}
+                  <KeyValueList
+                    entries={containersEnvArrays[idx] || []}
                     onChange={(entries) => updateContainerEnv(idx, entries)}
                     keyPlaceholder="ENV_VAR"
                     valuePlaceholder="value"
@@ -621,11 +629,13 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
             <div>
               <label className="block font-medium mb-1">Selector Labels</label>
               <KeyValueList 
-                entries={Object.entries(selector).map(([k,v]) => ({ key: k, value: v }))}
+                entries={selectorEntries}
                 onChange={(entries) => {
-                  const newSel: Record<string, string> = {};
-                  entries.forEach(({ key, value }) => { if (key) newSel[key] = value; });
-                  setSelector(newSel);
+                  const updated: Record<string, string> = {};
+                  for (const { key, value } of entries) {
+                    if (key.trim()) updated[key] = value;
+                  }
+                  setSelector(updated);
                 }}
                 keyPlaceholder="label"
                 valuePlaceholder="value"
@@ -642,17 +652,20 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
         {isConfigMap && (
           <div className="mb-4">
             <label className="block font-medium mb-1">Data (key-value pairs)</label>
-            <KeyValueList 
-              entries={Object.entries(dataFields).map(([k,v]) => ({ key: k, value: v }))}
+            <KeyValueList
+              entries={dataFieldsArray}
               onChange={(entries) => {
-                const newData: Record<string, string> = {};
-                entries.forEach(({ key, value }) => { if (key) newData[key] = value; });
-                setDataFields(newData);
+                const updated: Record<string, string> = {};
+                for (const { key, value } of entries) {
+                  if (key.trim()) updated[key] = value;
+                }
+                setDataFields(updated);
               }}
               keyPlaceholder="config key"
               valuePlaceholder="config value"
               valueAsTextarea={true}
             />
+
             <small className="text-gray-500">You can add multi-line config values; they will appear as block literals in YAML.</small>
           </div>
         )}
@@ -671,16 +684,19 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
               />
             </div>
             <label className="block font-medium mb-1">Data (key-value pairs)</label>
-            <KeyValueList 
-              entries={Object.entries(dataFields).map(([k,v]) => ({ key: k, value: v }))}
+            <KeyValueList
+              entries={secretDataArray}
               onChange={(entries) => {
-                const newData: Record<string, string> = {};
-                entries.forEach(({ key, value }) => { if (key) newData[key] = value; });
-                setDataFields(newData);
+                const updated: Record<string, string> = {};
+                for (const { key, value } of entries) {
+                  if (key.trim()) updated[key] = value;
+                }
+                setDataFields(updated);
               }}
               keyPlaceholder="secret key"
               valuePlaceholder="secret value (plain text)"
             />
+
             <small className="text-gray-500">Secret values will be base64-encoded in the output.</small>
           </div>
         )}

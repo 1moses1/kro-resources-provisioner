@@ -170,7 +170,7 @@ export default function HomePage() {
   // Handle final apply to cluster
   const handleApply = async () => {
     // Validate manifest against schema before applying
-    const validation = validateManifest(manifestObject);
+    const validation = await validateManifest(manifestObject);
     if (!validation.valid) {
       // If somehow invalid, show errors and abort apply
       const errorMsgs = validation.errors?.map(err => `${err.instancePath} ${err.message}`).join("; ");

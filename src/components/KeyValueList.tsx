@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React from "react";
 
 
 export interface KeyValueListProps {
@@ -18,43 +18,29 @@ export default function KeyValueList({
   valuePlaceholder = "value",
   valueAsTextarea = false,
 }: KeyValueListProps) {
-  const [localEntries, setLocalEntries] = useState(entries);
-
-
-  // Sync local state with prop changes
-  useEffect(() => {
-    setLocalEntries(entries);
-  }, [entries]);
-
-
   const updateEntry = (index: number, updated: { key?: string; value?: string }) => {
-    const newEntries = [...localEntries];
+    const newEntries = [...entries];
     newEntries[index] = {
       key: updated.key !== undefined ? updated.key : newEntries[index].key,
       value: updated.value !== undefined ? updated.value : newEntries[index].value,
     };
-    setLocalEntries(newEntries);
     onChange(newEntries);
   };
 
 
   const addEntry = () => {
-    const newEntries = [...localEntries, { key: "", value: "" }];
-    setLocalEntries(newEntries);
-    onChange(newEntries);
+    onChange([...entries, { key: "", value: "" }]);
   };
 
 
   const removeEntry = (index: number) => {
-    const newEntries = localEntries.filter((_, i) => i !== index);
-    setLocalEntries(newEntries);
-    onChange(newEntries);
+    onChange(entries.filter((_, i) => i !== index));
   };
 
 
   return (
     <div className="space-y-2">
-      {localEntries.map((entry, index) => (
+      {entries.map((entry, index) => (
         <div key={index} className="flex space-x-2 items-center">
           <input
             type="text"
