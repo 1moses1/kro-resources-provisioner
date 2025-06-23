@@ -1,5 +1,7 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm"; // PLugin for full markdown support
 
 type Role = "user" | "assistant";
 interface Message {
@@ -9,7 +11,7 @@ interface Message {
 
 export default function ChatAssistant() {
   const [apiKey, setApiKey] = useState<string>("");
-  const [model, setModel] = useState<string>("gpt-4");
+  const [model, setModel] = useState<string>("gpt-4"); // Default model
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -82,7 +84,7 @@ export default function ChatAssistant() {
             className="border border-gray-300 rounded px-2 py-1 text-sm"
           >
             <option value="gpt-4">GPT-4</option>
-            <option value="gpt-4">GPT-4o</option>
+            <option value="gpt-4o">GPT-4o</option>
             <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
           </select>
         </div>
@@ -93,37 +95,48 @@ export default function ChatAssistant() {
         {messages.length === 0 && !loading && (
           <p className="text-gray-500 text-sm">Ask a question or get suggestions. For example: "What resource should I add next?"</p>
         )}
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`mb-3 whitespace-pre-wrap ${msg.role === "assistant" ? "text-blue-900" : "text-gray-900"}`}>
-            <strong>{msg.role === "assistant" ? "Assistant: " : "You: "}</strong>
-            <span>{msg.content}</span>
-          </div>
-        ))}
+      {/* --- STYLED MESSAGE BUBBLES --- */} 
+      {messages.map((msg, idx) => ( 
+        <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}> 
+          <div className={`max-w-[80%] rounded-lg px-4 py-2 shadow ${msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-800'}`}> 
+            {msg.role === 'assistant' ? ( 
+              <article className="prose prose-sm max-w-none prose-blue"> 
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown> 
+              </article> ) : ( <p className="whitespace-pre-wrap">{msg.content}</p> )} </div> </div> ))} {/* --- END STYLED BUBBLES --- */}
         {loading && (
-          <div className="text-gray-500 text-sm">Assistant is typing...</div>
+          <div className="flex justify-start">
+            <div className="bg-gray-100 rounded-lg px-1 py-0.5 shadow">
+              <span className="animate-pulse">● ● ●</span>
+            </div>
+          </div>
         )}
+        {/* Scroll to bottom reference */}
         <div ref={messagesEndRef} />
       </div>
 
       {/* Message input box */}
-      <div>
+      <div className="p-4 border-t border-gray-300 bg-blue-50">
+        <div className="relative">
         <textarea 
-          className="w-full border border-gray-300 rounded px-2 py-1"
+          className="w-full border border-gray-300 rounded px-2 pr-12 text-sm shadow-sm focus:ring-blue-500 focus:border-blue-500" 
           rows={2}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type your question and press Enter to send..."
+          placeholder="Ask the assistant..."
           disabled={!apiKey || loading}
         />
         <button 
-          onClick={sendMessage}
-          disabled={!apiKey || loading || !input.trim()}
-          className="mt-1 w-full bg-blue-600 text-white text-sm font-medium py-1.5 rounded disabled:bg-gray-400"
+          onClick={sendMessage} 
+          disabled={!apiKey || loading || !input.trim()} 
+          className="absolute bottom-2.5 right-2.5 bg-blue-600 text-white p-1 rounded-md disabled:bg-gray-400 hover:bg-blue-700 transition-colors" 
+          aria-label="Send message" 
         >
-          Send
+          {/* Send */}
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
         </button>
       </div>
     </div>
+  </div>
   );
 }

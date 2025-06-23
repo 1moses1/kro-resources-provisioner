@@ -9,7 +9,9 @@ module.exports = {
       // You can extend the theme with custom colors or spacing if needed
     }
   },
-  plugins: []
+  plugins: [
+    require('@tailwindcss/typography'),
+  ]
 };
 // This is a basic Tailwind CSS configuration file.
 // It specifies the content paths where Tailwind should look for class names.
