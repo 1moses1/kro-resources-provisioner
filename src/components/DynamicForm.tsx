@@ -123,6 +123,7 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
     if (!apiVersion || !kind) {
       return; // required fields
     }
+    // --- FIX START: This is the fully corrected handleAdd function ---
     // Convert container env vars to KeyValueEntry format
     const finalContainers = containers.map(c => {
       const envArray = Array.isArray(c.env) ? c.env : [];
@@ -137,13 +138,15 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
     const resource: any = {
       apiVersion,
       kind,
-      config: {}
+      config: {},
+      // The 'dependsOn' array from the state is added here
+      ...(dependsOn.length > 0 && { dependsOn: [...dependsOn] }),
     };
+    // Set optional fields based on user input
     if (nameOverride.trim()) resource.nameOverride = nameOverride.trim();
     if (enabled === false) resource.enabled = false;
     if (clusterScope === true) resource.clusterScope = true;
-    if (dependsOn.length > 0) resource.dependsOn = [...dependsOn];
-    // --- FIX START ---     
+    // if (dependsOn.length > 0) resource.dependsOn = [...dependsOn];
     // Convert state arrays back to objects for the final resource config     
     const selectorAsRecord = entriesToRecord(selector);     
     const dataAsRecord = entriesToRecord(dataFields);     
@@ -156,10 +159,10 @@ export default function DynamicForm({ baseName, existingResources, onAddResource
     // Build config object based on filled fields
     if (replicas !== undefined) resource.config.replicas = replicas;
     if (finalContainers.length > 0) resource.config.containers = [...finalContainers];
-    if (containers.length > 0) resource.config.containers = [...containers];
+    // if (containers.length > 0) resource.config.containers = [...containers];
     if (serviceType) resource.config.serviceType = serviceType;
-    if (Object.keys(selector).length > 0) resource.config.selector = { ...selector };
-    if (Object.keys(dataFields).length > 0) resource.config.data = { ...dataFields };
+    // if (Object.keys(selector).length > 0) resource.config.selector = { ...selector };
+    // if (Object.keys(dataFields).length > 0) resource.config.data = { ...dataFields };
     if (secretType) resource.config.type = secretType;
     if (accessModes.length > 0) resource.config.accessModes = [...accessModes];
     if (storage) resource.config.storage = storage;

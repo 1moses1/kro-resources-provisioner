@@ -5,7 +5,7 @@ import YAML from "js-yaml";
 import { validateManifest } from "@/hooks/useSchemaValidator";
 import Stepper from "@/components/Stepper";
 import DynamicForm from "@/components/DynamicForm";
-import YamlPreview from "@/components/YamlPreview";
+import CodePreview from "@/components/CodePreview";
 import KeyValueList, { KeyValueEntry } from "@/components/KeyValueList";
 
 // Define TypeScript types for our form state (matching schema structure)
@@ -49,6 +49,9 @@ interface ResourceSpec {
 export default function HomePage() {
   // Step state: 0 = CR metadata, 1 = group spec metadata, 2 = resources, 3 = review
   const [step, setStep] = useState(0);
+
+  // Add state to manage  the preview format
+  const [previewFormat, setPreviewFormat] = useState<"yaml" | "json">("yaml");
 
   // Step 1: CR (CustomResource) metadata
   const [crName, setCrName] = useState("");  // metadata.name of the CR
@@ -155,6 +158,7 @@ export default function HomePage() {
   // Generate YAML text for preview from the manifest object
   const manifestObject = buildManifestObject();
   const manifestYAML = YAML.dump(manifestObject, { noRefs: true });
+  const manifestJSON = JSON.stringify(manifestObject, null, 2);
 
   // Navigation handlers for Next/Back
   const canProceedToNext = (): boolean => {
@@ -324,6 +328,13 @@ export default function HomePage() {
                   <li key={idx} className="mb-1">
                     <span className="font-medium">{res.kind}</span>{" "}
                     <span>({nameLabel})</span>
+                    {/* --- FIX START: This will display the dependencies ---*/}
+                    {res.dependsOn && res.dependsOn.length > 0 && (
+                      <span className="text-sm text-gray-500 italic ml-2">
+                        (depends on: {res.dependsOn.join(', ')})
+                      </span>
+                    )}
+                    {/* --- FIX END --- */}
                     <button 
                       onClick={() => handleRemoveResource(idx)}
                       className="text-red-600 hover:underline ml-2"
@@ -350,10 +361,31 @@ export default function HomePage() {
     stepContent = (
       <div className="flex flex-col h-full">
         <h2 className="text-xl font-semibold mb-4">Review & Apply</h2>
-        <p className="mb-4 text-gray-700">Review the generated YAML manifest below. If everything looks correct, you can apply it to the cluster.</p>
-        <div className="flex-1 min-h-0 mb-4 border border-gray-300 rounded-md overflow-auto p-3 bg-black/50">
-          {/* YAML preview (syntax-highlighted) */}
-          <YamlPreview yaml={manifestYAML} />
+        {/* --- FIX START: Add the format toggle buttons --- */} 
+        <div className="flex items-center rounded-lg bg-gray-200 p-1"> 
+          <button 
+            onClick={() => setPreviewFormat('yaml')} 
+            className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${previewFormat === 'yaml' ? 'bg-white text-blue-600 shadow' : 'bg-transparent text-gray-600'}`} 
+          > 
+            YAML 
+          </button> 
+          <button 
+            onClick={() => setPreviewFormat('json')} 
+            className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${previewFormat === 'json' ? 'bg-white text-blue-600 shadow' : 'bg-transparent text-gray-600'}`} 
+          > 
+            JSON 
+          </button> 
+        </div> 
+        {/* --- FIX END --- */}
+      
+
+        <p className="mb-4 text-gray-700">Review the generated {previewFormat.toUpperCase()} manifest below. If everything looks correct, you can apply it to the cluster.</p>
+        <div className="flex-1 min-h-0 mb-4 border border-gray-300 rounded-md overflow-auto p-3 bg-grey-800">
+          {/* Use the new COdePreview Component */}
+          <CodePreview
+            language={previewFormat} 
+            content={previewFormat === "yaml" ? manifestYAML : manifestJSON} 
+          />
         </div>
         {applyResult && (
           <div className={`p-3 mb-4 rounded ${applyResult.success ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}>
